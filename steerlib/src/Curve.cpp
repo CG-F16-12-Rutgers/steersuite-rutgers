@@ -58,7 +58,8 @@ void Curve::drawCurve(Color curveColor, float curveThickness, int window)
 			startPoint.x = (controlPoints[i]).position.x;
 			startPoint.y = (controlPoints[i]).position.y;
 			startPoint.z = (controlPoints[i]).position.z;
-			for (int j = (controlPoints[i]).time + window; j <= (controlPoints[i + 1]).time; j += window)
+		
+			for (float j = (controlPoints[i]).time + (float) window; j <= (controlPoints[i + 1]).time; j += (float) window)
 			{
 				calculatePoint(nextPoint, j);
 				DrawLib::drawLine(startPoint, nextPoint, curveColor, curveThickness);
@@ -144,8 +145,16 @@ bool Curve::checkRobust()
 {
 	/* implement */
 
-	if (controlPoints.size() < 2)
-		return false;
+	if (type == hermiteCurve)
+	{	
+		if (controlPoints.size() < 2)
+			return false;
+	}
+	if (type == catmullCurve)
+	{
+		if (controlPoints.size() < 3)
+			return false;
+	}
 
 	return true;
 }
