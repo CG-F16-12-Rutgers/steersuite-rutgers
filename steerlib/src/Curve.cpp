@@ -79,6 +79,15 @@ void Curve::sortControlPoints()
 {
 	/* implement */
 
+	// drop duplicated points
+	for (int i = 0; i < controlPoints.size(); i++)
+		for (int j = i + 1; j < controlPoints.size(); j++)
+			while (j < controlPoints.size() && (controlPoints[i]).time == (controlPoints[j]).time)
+			{
+				controlPoints.erase(controlPoints.begin() + j);
+			}
+
+	// sort
 	for (int i = 0; i < controlPoints.size(); i++)
 		for (int j = i + 1; j < controlPoints.size(); j++)
 			if ((controlPoints[i]).time > (controlPoints[j]).time)
@@ -106,7 +115,6 @@ void Curve::sortControlPoints()
 				(controlPoints[i]).time = (controlPoints[j]).time;
 				(controlPoints[j]).time = temp;
 			}
-	
 	return;
 }
 
@@ -179,6 +187,14 @@ Point Curve::useHermiteCurve(const unsigned int nextPoint, const float time)
 
 	// Calculate position at t = time on Hermite curve
 
+        if (time >= (controlPoints[controlPoints.size() - 1]).time) // no available nextPoint
+        {
+                newPosition.x = (controlPoints[controlPoints.size() - 1]).position.x;
+                newPosition.y = (controlPoints[controlPoints.size() - 1]).position.y;
+                newPosition.z = (controlPoints[controlPoints.size() - 1]).position.z;
+                return newPosition;
+        }
+
 	/* implement */
 	float location_i, location_next, shape_i, shape_next;
 	float coefficient_a, coefficient_b, coefficient_c, coefficient_d;
@@ -244,6 +260,14 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time)
 	
 
 	/* implement */
+
+	if (time >= (controlPoints[controlPoints.size() - 1]).time) // no available nextPoint
+	{
+		newPosition.x = (controlPoints[controlPoints.size() - 1]).position.x;
+		newPosition.y = (controlPoints[controlPoints.size() - 1]).position.y;
+		newPosition.z = (controlPoints[controlPoints.size() - 1]).position.z;
+		return newPosition;
+	}
 
 	float location_i, location_next, shape_i, shape_next;
         float coefficient_a, coefficient_b, coefficient_c, coefficient_d;
