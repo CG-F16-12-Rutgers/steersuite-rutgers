@@ -79,42 +79,17 @@ void Curve::sortControlPoints()
 {
 	/* implement */
 
-	// drop duplicated points
-	for (int i = 0; i < controlPoints.size(); i++)
-		for (int j = i + 1; j < controlPoints.size(); j++)
-			while (j < controlPoints.size() && (controlPoints[i]).time == (controlPoints[j]).time)
-			{
-				controlPoints.erase(controlPoints.begin() + j);
-			}
+	//sort based on time
+	sort(controlPoints.begin(), controlPoints.end(), 
+	     [](const CurvePoint &controlPoint1, const CurvePoint &controlPoint2)
+		 {return controlPoint1.time < controlPoint2.time;});
 
-	// sort
-	for (int i = 0; i < controlPoints.size(); i++)
-		for (int j = i + 1; j < controlPoints.size(); j++)
-			if ((controlPoints[i]).time > (controlPoints[j]).time)
-			{
-				float temp;
-				temp = ((controlPoints[i]).position).x;
-				((controlPoints[i]).position).x = ((controlPoints[j]).position).x;
-				((controlPoints[j]).position).x = temp;
-                                temp = ((controlPoints[i]).position).y;
-                                ((controlPoints[i]).position).y = ((controlPoints[j]).position).y;
-                                ((controlPoints[j]).position).y = temp;
-                                temp = ((controlPoints[i]).position).z;
-                                ((controlPoints[i]).position).z = ((controlPoints[j]).position).z;
-                                ((controlPoints[j]).position).z = temp;
-                                temp = ((controlPoints[i]).tangent).x;
-                                ((controlPoints[i]).tangent).x = ((controlPoints[j]).tangent).x;
-                                ((controlPoints[j]).tangent).x = temp;
-                                temp = ((controlPoints[i]).tangent).y;
-                                ((controlPoints[i]).tangent).y = ((controlPoints[j]).tangent).y;
-                                ((controlPoints[j]).tangent).y = temp;
-                                temp = ((controlPoints[i]).tangent).z;
-                                ((controlPoints[i]).tangent).z = ((controlPoints[j]).tangent).z;
-                                ((controlPoints[j]).tangent).z = temp;
-				temp = (controlPoints[i]).time;
-				(controlPoints[i]).time = (controlPoints[j]).time;
-				(controlPoints[j]).time = temp;
-			}
+	//drop duplicated points based on time
+	auto end_unique = unique(controlPoints.begin(), controlPoints.end(),
+							 [](const CurvePoint &controlPoint1, const CurvePoint &controlPoint2)
+							 {return controlPoint1.time == controlPoint2.time;});
+	controlPoints.erase(end_unique, controlPoints.end());
+
 	return;
 }
 
