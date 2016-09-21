@@ -79,16 +79,16 @@ void Curve::sortControlPoints()
 {
 	/* implement */
 
+        //drop duplicated points based on time
+        auto end_unique = unique(controlPoints.begin(), controlPoints.end(),
+                                                         [](const CurvePoint &controlPoint1, const CurvePoint &controlPoint2)
+                                                         {return controlPoint1.time == controlPoint2.time;});
+        controlPoints.erase(end_unique, controlPoints.end());
+
 	//sort based on time
 	sort(controlPoints.begin(), controlPoints.end(), 
 	     [](const CurvePoint &controlPoint1, const CurvePoint &controlPoint2)
 		 {return controlPoint1.time < controlPoint2.time;});
-
-	//drop duplicated points based on time
-	auto end_unique = unique(controlPoints.begin(), controlPoints.end(),
-							 [](const CurvePoint &controlPoint1, const CurvePoint &controlPoint2)
-							 {return controlPoint1.time == controlPoint2.time;});
-	controlPoints.erase(end_unique, controlPoints.end());
 
 	return;
 }
