@@ -87,13 +87,13 @@ double distance_from_point_to_line(const Util::Vector &checked_point, const Util
 	double norm_segment = vector_norm(line_point1 - line_point2);
 	double res = c_p / norm_segment;
 
-	return abs(res);
+	return fabs(res);
 }
 
 double distance_from_point_to_segment(const Util::Vector &checked_point, const Util::Vector &line_point1, const Util::Vector &line_point2)
 {
 	double d_p1 = dot_product(checked_point - line_point1, line_point2 - line_point1);
-	double d_p2 = dot_product(checked_point - line_point2, line_point2 - line_point1);
+	double d_p2 = dot_product(checked_point - line_point2, line_point1 - line_point2);
 
 	if (d_p1 > 0 && d_p2 > 0)
 		return distance_from_point_to_line(checked_point, line_point1, line_point2);
@@ -151,6 +151,14 @@ void remove_points_GJK(std::vector<Util::Vector> &points_set)
 	}
 }
 
+void normalize_vec(Util::Vector &vec_input)
+{
+	double s = vector_norm(vec_input);
+	vec_input.x /= s;
+	vec_input.y /= s;
+	vec_input.z /= s;
+}
+
 bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetration_vector, const std::vector<Util::Vector>& _shapeA, const std::vector<Util::Vector>& _shapeB)
 {
 	double eps_checked = 0.01;
@@ -172,7 +180,7 @@ bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetr
 		w_support.x = a_support.x - b_support.x;
 		w_support.z = a_support.z - b_support.z;
 		
-		if (abs(vector_norm(w_support) - vector_norm(v)) <= eps_checked)
+		if (vector_norm(w_support - v) <= eps_checked)
 		{
 			return false;
 		}
@@ -198,51 +206,52 @@ bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetr
 	}
 
 	// EPA
-	double eps_check_epa = 0.001;
+	double eps_check_epa = 0.00001;
 	int i;
 	bool first_iteration = true;
 	Util::Vector res(0, 0, 0);
 
 	while (1)
 	{
-		int closest_index = W_set.size() - 1;
+		int closest_index = W_set.size() - 1, closest_next = 0;
 		double closest_dis = distance_from_point_to_segment(origin, W_set[0], W_set[W_set.size() - 1]);
-		Util::Vector support_new(0, 0, 0), vec_to_closest, a_support, b_support;
+		Util::Vector support_new(0, 0, 0), vec_to_closest(0, 0, 0), a_support, b_support;
 
 		for (i = 0; i < W_set.size() - 1; i++)
+		{
 			if (distance_from_point_to_segment(origin, W_set[i], W_set[i + 1]) < closest_dis)
 			{
-				closest_index = i;
+				closest_index = i, closest_next = i + 1;
 				closest_dis = distance_from_point_to_segment(origin, W_set[i], W_set[i + 1]);
 			}
+		}
 
-		if (closest_index == W_set.size() - 1)
-			normal_vector_xz(origin, W_set[0], W_set[W_set.size() - 1], vec_to_closest);
-		else
-			normal_vector_xz(origin, W_set[closest_index], W_set[closest_index + 1], vec_to_closest);
+		normal_vector_xz(origin, W_set[closest_index], W_set[closest_next], vec_to_closest);
 
+		normalize_vec(vec_to_closest);
+		vec_to_closest.x *= closest_dis, vec_to_closest.z *= closest_dis;
 		get_support(_shapeA, vec_to_closest, a_support);
-		get_support(_shapeB, vec_to_closest, b_support);
+		get_support(_shapeB, -vec_to_closest, b_support);
 		support_new.x = a_support.x - b_support.x;
 		support_new.z = a_support.z - b_support.z;
-		if (!first_iteration)
+
+		if (vector_norm(support_new - W_set[closest_index]) <= eps_check_epa || vector_norm(support_new - W_set[closest_next]) <= eps_check_epa)
 		{
-			if (vector_norm(res - support_new) <= eps_check_epa)
-				break;
+			res.x = vec_to_closest.x;
+			res.z = vec_to_closest.z;
+			break;
 		}
-		else
-			first_iteration = false;
+
 		if (closest_index == W_set.size() - 1)
 			W_set.push_back(support_new);
 		else
 			W_set.insert(W_set.begin() + closest_index + 1, support_new);
-		res.x = support_new.x;	
-		res.z = support_new.z;
 	}
 	return_penetration_depth = vector_norm(res);
 	return_penetration_vector.x = res.x;
 	return_penetration_vector.z = res.z;
 	return_penetration_vector.y = 0;
+	normalize_vec(return_penetration_vector);
 	
 	return true;
 }
