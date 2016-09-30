@@ -220,7 +220,7 @@ bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetr
 		else
 			normal_vector_xz(origin, W_set[closest_index], W_set[closest_index + 1], vec_to_closest);
 
-		if (first_iteration)
+		if (!first_iteration)
 		{
 			if (vector_norm(res - vec_to_closest) <= eps_check_epa)
 				break;
