@@ -220,23 +220,23 @@ bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetr
 		else
 			normal_vector_xz(origin, W_set[closest_index], W_set[closest_index + 1], vec_to_closest);
 
-		if (!first_iteration)
-		{
-			if (vector_norm(res - vec_to_closest) <= eps_check_epa)
-				break;
-		}
-		else
-			first_iteration = false;
 		get_support(_shapeA, vec_to_closest, a_support);
 		get_support(_shapeB, vec_to_closest, b_support);
 		support_new.x = a_support.x - b_support.x;
 		support_new.z = a_support.z - b_support.z;
+		if (!first_iteration)
+		{
+			if (vector_norm(res - support_new) <= eps_check_epa)
+				break;
+		}
+		else
+			first_iteration = false;
 		if (closest_index == W_set.size() - 1)
 			W_set.push_back(support_new);
 		else
 			W_set.insert(W_set.begin() + closest_index + 1, support_new);
-		res.x = vec_to_closest.x;	
-		res.z = vec_to_closest.z;
+		res.x = support_new.x;	
+		res.z = support_new.z;
 	}
 	return_penetration_depth = vector_norm(res);
 	return_penetration_vector.x = res.x;
