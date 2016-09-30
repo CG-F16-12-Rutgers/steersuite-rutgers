@@ -61,6 +61,7 @@ bool convex_contain(const std::vector<Util::Vector> &vertices, const Util::Vecto
 
 void get_support(const std::vector<Util::Vector> &vertices,const Util::Vector &d, Util::Vector &support)
 {
+	int i;
 	double max_dot;
 
 	support.x = (vertices[0]).x;
@@ -86,7 +87,7 @@ double distance_from_point_to_line(const Util::Vector &checked_point, const Util
 	double norm_segment = vector_norm(line_point1 - line_point2);
 	double res = c_p / norm_segment;
 
-	return abs(res):
+	return abs(res);
 }
 
 double distance_from_point_to_segment(const Util::Vector &checked_point, const Util::Vector &line_point1, const Util::Vector &line_point2)
@@ -104,7 +105,7 @@ double distance_from_point_to_segment(const Util::Vector &checked_point, const U
 	}
 }
 
-void normal_vector_xz(const Util::Vector &checked_point, const Util::Vector &line_point1, const Util::Vector &line_point2, Util::vector &output)
+void normal_vector_xz(const Util::Vector &checked_point, const Util::Vector &line_point1, const Util::Vector &line_point2, Util::Vector &output)
 {
 	double vec_x = line_point2.x - line_point1.x, vec_z = line_point2.z - line_point1.z;
 
@@ -136,7 +137,7 @@ void remove_points_GJK(std::vector<Util::Vector> &points_set)
 		Util::Vector origin(0, 0, 0);
 
 		for (i = 0; i < points_set.size() - 1; i++)
-			if (distance_from_point_to_segment(origin, points_set[i], points_set[i + 1]) < distance_from_point_to_segment(origin, save_p1, save_p2))
+			if (distance_from_point_to_segment(origin, points_set[i], points_set[i + 1]) < distance_from_point_to_segment(origin, points_set[save_p1], points_set[save_p2]))
 			{
 				save_p1 = i;
 				save_p2 = i + 1;
