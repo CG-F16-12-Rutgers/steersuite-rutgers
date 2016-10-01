@@ -162,7 +162,7 @@ void normalize_vec(Util::Vector &vec_input)
 bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetration_vector, const std::vector<Util::Vector>& _shapeA, const std::vector<Util::Vector>& _shapeB)
 {
 	double eps_checked = 0.01;
-	Util::Vector v, v_old, origin(0, 0, 0);
+	Util::Vector v, origin(0, 0, 0);
 	std::vector<Util::Vector> W_set;
 	bool first_iteration = true;
 
@@ -199,16 +199,12 @@ bool GJK_EPA_convex(float& return_penetration_depth, Util::Vector& return_penetr
 			W_set.push_back(w_support);
 			if (convex_contain(W_set, origin))
 				break;
+			if (vector_norm(w_support - W_set[0]) <= eps_checked || vector_norm(w_support - W_set[1]) <= eps_checked)
+				return false;
 			remove_points_GJK(W_set);
 			normal_vector_xz(origin, W_set[0], W_set[1], v);
-			if (!first_iteration && vector_norm(v - v_old) <= eps_checked)
-				return false;
 		}
-		
-		if (first_iteration)
-			first_iteration = false;
-		else
-			v_old.x = v.x, v_old.z = v.z;
+
 	}
 
 	// EPA
