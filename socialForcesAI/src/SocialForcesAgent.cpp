@@ -951,13 +951,159 @@ void SocialForcesAgent::evadeAccel(float timeStamp, float dt, unsigned int frame
 	}
 }
 
+double dot_xz(Util::Vector v1, Util::Vector v2)
+{
+	return (v1.x * v2.x + v1.z * v2.z);
+}
+
+double cross_xz(Util::Vector v1, Util::Vector v2)
+{
+	return (v1.x * v2.z - v1.z * v2.x);
+}
+
+bool cross_check_xz(Util::Point seg1_p1, Util::Point seg1_p2, Util::Point seg2_p1, Util::Point seg2_p2)
+{
+	Util::Vector seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p1, seg1_p1_to_seg2_p2;
+
+	seg1_p1_to_seg1_p2.x = seg1_p2.x - seg1_p1.x;
+	seg1_p1_to_seg1_p2.y = seg1_p2.y - seg1_p1.y;
+	seg1_p1_to_seg1_p2.z = seg1_p2.z - seg1_p1.z;
+
+	seg1_p1_to_seg2_p1.x = seg2_p1.x - seg1_p1.x;
+	seg1_p1_to_seg2_p1.y = seg2_p1.y - seg1_p1.y;
+	seg1_p1_to_seg2_p1.z = seg2_p1.z - seg1_p1.z;
+
+	seg1_p1_to_seg2_p2.x = seg2_p2.x - seg1_p1.x;
+	seg1_p1_to_seg2_p2.y = seg2_p2.y - seg1_p1.y;
+	seg1_p1_to_seg2_p2.z = seg2_p2.z - seg1_p1.z;
+
+	double cross_checked = cross_xz(seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p1) * cross_xz(seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p2);
+	
+	return (cross_checked <= 0);
+}
+
+bool intersect_seg_xz(Util::Point seg1_p1, Util::Point seg1_p2, Util::Point seg2_p1, Util::Point seg2_p2)
+{
+	bool check1 = cross_check_xz(seg1_p1, seg1_p2, seg2_p1, seg2_p2);
+	bool check2 = cross_check_xz(seg2_p1, seg2_p1, seg1_p1, seg1_p2);
+	return (check1 && check2);
+}
+
+bool predictCollision(Util::Point cur_p1, Util::Point future_p1, double size_r1, Util::Point cur_p2, Util::Point future_p2, double size_r2)
+{
+	if (intersect_seg_xz(cur_p1, future_p1, cur_p2, future_p2))
+		return true;
+	Util::Vector diff;
+	diff.x = future_p1.x - future_p2.x;
+	diff.y = future_p1.y - future_p2.y;
+	diff.z = future_p1.z - future_p2.z;
+	if (diff.length() < size_r1 + size_r2)
+		return true;
+	return false;
+}
+
+void normalVectorXZ(Util::Vector v_input, Util::Vector &v_output)
+{
+	v_output.y = 0;
+	if (v_input.z == 0)
+	{
+		v_output.x = 0;
+		v_output.z = 1;
+	}
+	else
+	{
+		v_output.x = 1;
+		v_output.z = -v_input.x / v_input.z;
+	}
+
+	if (v_output.length() > 0)
+		v_output = normalize(v_output);
+	if (cross_xz(v_output, v_input) < 0)
+		v_output = -1 * v_output;
+}
+
+void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	double collision_num = 0, time_step_in_future = 5, checked_eps = 0.1;
+	output_acceleration.x = output_acceleration.y = output_acceleration.z = 0;
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	SocialForcesAgent* tmp_agent;
+	
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+                                _position.x-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.x+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
+		if ((*neighbour)->isAgent())
+		{
+			tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+			Util::Point future_pos = position();
+			future_pos.x += time_step_in_future * dt * (velocity()).x;
+			future_pos.y += time_step_in_future * dt * (velocity()).y;
+			future_pos.z += time_step_in_future * dt * (velocity()).z;
+			Util::Point future_other = tmp_agent->position();
+			future_other.x += time_step_in_future * dt * (tmp_agent->velocity()).x;
+			future_other.y += time_step_in_future * dt * (tmp_agent->velocity()).y;
+			future_other.z += time_step_in_future * dt * (tmp_agent->velocity()).z;
+			if (predictCollision(position(), future_pos, radius(), tmp_agent->position(), future_other, tmp_agent->radius()))
+			{
+				if (fabs(cross_xz(velocity(), tmp_agent->velocity())) <= checked_eps)
+				{
+					Util::Vector normal_vec;
+					normalVectorXZ(velocity(), normal_vec);
+					if (dot_xz(velocity(), tmp_agent->velocity()) <= 0)
+						output_acceleration = output_acceleration + normal_vec;
+					else
+					{
+						if (rand() % 2 == 0)
+							output_acceleration = output_acceleration - normal_vec;
+						else
+							output_acceleration = output_acceleration + normal_vec;
+					}
+				}
+				else
+				{
+					bool acc_this;
+					if ((velocity()).length() > (tmp_agent->velocity()).length())
+						acc_this = true;
+					else if ((velocity()).length() == (tmp_agent->velocity()).length())
+						acc_this = (rand() % 2 == 0);
+					else
+						acc_this = false;
+					Util::Vector combined_vec = velocity();
+					if (combined_vec.length() != 0)
+						combined_vec = normalize(combined_vec);
+					if ((tmp_agent->velocity()).length() != 0)
+						combined_vec = combined_vec + normalize(tmp_agent->velocity());
+					if (combined_vec.length() > 0)
+						combined_vec = normalize(combined_vec);
+					if (acc_this)
+					{
+						output_acceleration = output_acceleration + combined_vec;
+					}
+					else
+					{
+						output_acceleration = output_acceleration - combined_vec;
+					}
+				}
+				collision_num = collision_num + 1;
+			}
+		}
+	if (collision_num > 0)
+		output_acceleration = (1 / collision_num) * output_acceleration;
+	output_acceleration = 0.9 * sf_max_speed * output_acceleration;
+}
 
 void SocialForcesAgent::IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
 {
-	Util::Vector pursue_accel, evade_accel;
+	Util::Vector pursue_accel, evade_accel, collision_avoidance;
 	pursueAccel(timeStamp, dt, frameNumber, pursue_accel);
 	evadeAccel(timeStamp, dt, frameNumber, evade_accel);
-	output_acceleration = pursue_accel + evade_accel;
+	unalignedCollisionAvoidance(timeStamp, dt, frameNumber, collision_avoidance);
+	output_acceleration = pursue_accel + evade_accel + collision_avoidance;
 }
 
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
@@ -976,7 +1122,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	external_forces(timeStamp, dt, frameNumber, external_f);
 	IndBehaviorAccel(timeStamp, dt, frameNumber, ind_f);
 
-	_velocity = velocity() + 0.5 * external_f + 0.5 * ind_f;
+	_velocity = velocity() + 0.4 * external_f + 0.6 * ind_f;
 
 	_velocity = clamp(velocity(), _SocialForcesParams.sf_max_speed);
 	_velocity.y=0.0f;

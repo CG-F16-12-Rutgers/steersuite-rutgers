@@ -76,6 +76,7 @@ protected:
 	bool noGoalRemained();
 	void pursueAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void evadeAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void unalignedCollisionAvoidance(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	// A3 end
 
