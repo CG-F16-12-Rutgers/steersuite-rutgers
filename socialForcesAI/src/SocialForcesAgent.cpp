@@ -963,6 +963,8 @@ double cross_xz(Util::Vector v1, Util::Vector v2)
 
 bool cross_check_xz(Util::Point seg1_p1, Util::Point seg1_p2, Util::Point seg2_p1, Util::Point seg2_p2)
 {
+	double check_cross_eps = 0.05;
+
 	Util::Vector seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p1, seg1_p1_to_seg2_p2;
 
 	seg1_p1_to_seg1_p2.x = seg1_p2.x - seg1_p1.x;
@@ -979,7 +981,7 @@ bool cross_check_xz(Util::Point seg1_p1, Util::Point seg1_p2, Util::Point seg2_p
 
 	double cross_checked = cross_xz(seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p1) * cross_xz(seg1_p1_to_seg1_p2, seg1_p1_to_seg2_p2);
 	
-	return (cross_checked <= 0);
+	return (cross_checked <= 0.05);
 }
 
 bool intersect_seg_xz(Util::Point seg1_p1, Util::Point seg1_p2, Util::Point seg2_p1, Util::Point seg2_p2)
@@ -1042,6 +1044,10 @@ void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, u
 			tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
 			if (seekDynamicTargetSet.find(tmp_agent->agentName) != seekDynamicTargetSet.end())
 			{ // agents do not need to avoid the one they are pursing
+				continue;
+			}
+			if (agentName.find("leader") != std::string::npos && (tmp_agent->agentName).find("leader") == std::string::npos)
+			{ // this is a leader while the other is not, this leader will not avoid the other
 				continue;
 			}
 			Util::Point future_pos = position();
@@ -1111,7 +1117,7 @@ void SocialForcesAgent::IndBehaviorAccel(float timeStamp, float dt, unsigned int
 	pursueAccel(timeStamp, dt, frameNumber, pursue_accel);
 	evadeAccel(timeStamp, dt, frameNumber, evade_accel);
 	unalignedCollisionAvoidance(timeStamp, dt, frameNumber, collision_avoidance);
-	output_acceleration = pursue_accel + evade_accel /*+ collision_avoidance*/;
+	output_acceleration = pursue_accel + evade_accel + collision_avoidance;
 }
 
 void SocialForcesAgent::arriveAccel(Util::Point goalPoint, float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
@@ -1134,7 +1140,7 @@ bool checkInFrontOfLeader(Util::Point follower, Util::Point leader, Util::Vector
 	if (leaderVelocity.length() <= 0)
 		return false;
 
-	double check_size_forward = 10, check_size_wide = 1.5;
+	double check_size_forward = 10, check_size_wide = 2;
 
 	Util::Vector forward_n, horizontal_n, follower_vec;
 	forward_n = normalize(leaderVelocity);
@@ -1149,7 +1155,7 @@ bool checkInFrontOfLeader(Util::Point follower, Util::Point leader, Util::Vector
 
 void SocialForcesAgent::leaderFollowing(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
 {
-	double offset_after_leader = 1.5, separation_weight = 0.2;
+	double offset_after_leader = 3, separation_weight = 0.5;
 	
 	double leaderNum = 0;
 	Util::Vector leader_accel, separation_accel;
