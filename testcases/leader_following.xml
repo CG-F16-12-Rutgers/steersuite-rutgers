@@ -129,7 +129,7 @@
     <name>Leader</name>
     <initialConditions>
       <radius>0.5</radius>
-      <position> <x>30</x> <y>0</y> <z>-0.5</z> </position>
+      <position> <x>22</x> <y>0</y> <z>-0.5</z> </position>
       <direction> <x>1</x> <y>0</y> <z>0</z> </direction>   
       <speed>0</speed>
       <color> <r>1</r> <g>0</g> <b>0</b> </color>
@@ -167,7 +167,7 @@
     <name>Agent C</name>
     <initialConditions>
       <radius>0.5</radius>
-      <position> <x>15</x> <y>0</y> <z>-0.5</z> </position>
+      <position> <x>19</x> <y>0</y> <z>-0.5</z> </position>
       <direction> <x>-1</x> <y>0</y> <z>0</z> </direction>
       <speed>0</speed>
       <color> <r>1</r> <g>1</g> <b>0</b> </color>
