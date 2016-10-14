@@ -893,7 +893,7 @@ void SocialForcesAgent::pursueAccel(float timeStamp, float dt, unsigned int fram
 			future_pos.z = (tmp_agent->position()).z;
 			future_pos = future_pos + dt * (tmp_agent->velocity());
 			std::string neighbor_name = tmp_agent->agentName;
-			if (seekDynamicTargetSet.find(neighbor_name) != seekDynamicTargetSet.end())
+			if (seekDynamicTargetSet.find(neighbor_name) != seekDynamicTargetSet.end() && neighbor_name.find("leader") == std::string::npos)
 			{
 				Util::Vector desired_v;
 				desired_v.x = future_pos.x - (position()).x;
@@ -934,7 +934,7 @@ void SocialForcesAgent::evadeAccel(float timeStamp, float dt, unsigned int frame
 			future_pos.z = (tmp_agent->position()).z;
 			future_pos = future_pos + dt * (tmp_agent->velocity());
 			std::string neighbor_name = tmp_agent->agentName;
-			if (fleeDynamicTargetSet.find(neighbor_name) != fleeDynamicTargetSet.end())
+			if (fleeDynamicTargetSet.find(neighbor_name) != fleeDynamicTargetSet.end() && neighbor_name.find("leader") == std::string::npos)
 			{
 				Util::Vector desired_v;
 				desired_v.x = (position()).x - future_pos.x;
@@ -1038,8 +1038,12 @@ void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, u
 
 	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
 		if ((*neighbour)->isAgent())
-		{
+		{	
 			tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+			if (seekDynamicTargetSet.find(tmp_agent->agentName) != seekDynamicTargetSet.end())
+			{ // agents do not need to avoid the one they are pursing
+				continue;
+			}
 			Util::Point future_pos = position();
 			future_pos.x += time_step_in_future * dt * (velocity()).x;
 			future_pos.y += time_step_in_future * dt * (velocity()).y;
@@ -1048,7 +1052,7 @@ void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, u
 			future_other.x += time_step_in_future * dt * (tmp_agent->velocity()).x;
 			future_other.y += time_step_in_future * dt * (tmp_agent->velocity()).y;
 			future_other.z += time_step_in_future * dt * (tmp_agent->velocity()).z;
-			if (predictCollision(position(), future_pos, radius(), tmp_agent->position(), future_other, tmp_agent->radius()))
+			if (predictCollision(position(), future_pos, radius(), tmp_agent->position(), future_other, tmp_agent->radius()) && (tmp_agent->agentName).find("leader") == std::string::npos)
 			{
 				if (fabs(cross_xz(velocity(), tmp_agent->velocity())) <= checked_eps)
 				{
@@ -1094,7 +1098,11 @@ void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, u
 		}
 	if (collision_num > 0)
 		output_acceleration = (1 / collision_num) * output_acceleration;
-	output_acceleration = 0.9 * sf_max_speed * output_acceleration;
+	if (output_acceleration.length() > 0)
+	{
+		output_acceleration = normalize(output_acceleration);
+		output_acceleration = 0.9 * sf_max_speed * output_acceleration;
+	}
 }
 
 void SocialForcesAgent::IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
@@ -1103,7 +1111,119 @@ void SocialForcesAgent::IndBehaviorAccel(float timeStamp, float dt, unsigned int
 	pursueAccel(timeStamp, dt, frameNumber, pursue_accel);
 	evadeAccel(timeStamp, dt, frameNumber, evade_accel);
 	unalignedCollisionAvoidance(timeStamp, dt, frameNumber, collision_avoidance);
-	output_acceleration = pursue_accel + evade_accel + collision_avoidance;
+	output_acceleration = pursue_accel + evade_accel /*+ collision_avoidance*/;
+}
+
+void SocialForcesAgent::arriveAccel(Util::Point goalPoint, float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	Util::Vector target_offset;
+	double dis_offset, slowing_dis = 0.8;
+
+	target_offset.x = goalPoint.x - (position()).x;
+	target_offset.y = goalPoint.y - (position()).y;
+	target_offset.z = goalPoint.z - (position()).z;
+	dis_offset = target_offset.length();
+	double ramped_speed = sf_max_speed * (dis_offset / slowing_dis);
+	double clipped_speed = (ramped_speed < sf_max_speed ? ramped_speed : sf_max_speed);
+	target_offset = normalize(target_offset);
+	output_acceleration = clipped_speed * target_offset;
+}
+
+bool checkInFrontOfLeader(Util::Point follower, Util::Point leader, Util::Vector leaderVelocity)
+{
+	if (leaderVelocity.length() <= 0)
+		return false;
+
+	double check_size_forward = 10, check_size_wide = 1.5;
+
+	Util::Vector forward_n, horizontal_n, follower_vec;
+	forward_n = normalize(leaderVelocity);
+	normalVectorXZ(forward_n, horizontal_n);
+	follower_vec.x = follower.x - leader.x, follower_vec.y = follower.y - leader.y, follower_vec.z = follower.z - leader.z;
+	double projected_y = dot_xz(follower_vec, forward_n), projected_x = dot_xz(follower_vec, horizontal_n);
+	
+	if (projected_y >= 0 && projected_y <= check_size_forward && projected_x >= -check_size_wide && projected_x <= check_size_wide)
+		return true;
+	return false;
+}
+
+void SocialForcesAgent::leaderFollowing(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	double offset_after_leader = 1.5, separation_weight = 0.2;
+	
+	double leaderNum = 0;
+	Util::Vector leader_accel, separation_accel;
+	leader_accel.x = leader_accel.y = leader_accel.z = 0;
+	separation_accel.x = separation_accel.y = separation_accel.z = 0;
+
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	SocialForcesAgent* tmp_agent;
+	
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+                                _position.x-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.x+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
+		if ((*neighbour)->isAgent())
+		{
+			tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+			std::string neighbor_name = tmp_agent->agentName;
+			if (seekDynamicTargetSet.find(neighbor_name) != seekDynamicTargetSet.end() && neighbor_name.find("leader") != std::string::npos)
+			{ // leader
+				if (checkInFrontOfLeader(position(), tmp_agent->position(), tmp_agent->velocity()))
+				{ // don't stop leader
+					leaderNum = leaderNum + 1;
+					Util::Vector leaderNormal;
+					normalVectorXZ(tmp_agent->velocity(), leaderNormal);
+					if (rand() % 2 == 1)
+						leaderNormal = -1 * leaderNormal;
+					leader_accel = leader_accel + sf_max_speed * leaderNormal;
+				}
+				else if ((tmp_agent->velocity()).length() > 0)
+				{ // arrive location after leader	
+					leaderNum = leaderNum + 1;
+					Util::Point arrive_location = tmp_agent->position();
+					Util::Vector leaderFoward = normalize(tmp_agent->velocity()), arrive_accel;
+					arrive_location.x -= offset_after_leader * leaderFoward.x;
+					arrive_location.z -= offset_after_leader * leaderFoward.z;
+					arriveAccel(arrive_location, timeStamp, dt, frameNumber, arrive_accel);
+					leader_accel = leader_accel + arrive_accel;
+				}
+			}
+			else
+			{ // separation
+				Util::Vector others_to_agent;
+				others_to_agent.y = 0;
+				others_to_agent.x = (position()).x - (tmp_agent->position()).x;
+				others_to_agent.z = (position()).z - (tmp_agent->position()).z;
+				others_to_agent = normalize(others_to_agent);
+				separation_accel = separation_weight * others_to_agent;
+			}
+		}
+
+	if (leaderNum <= 0)
+	{
+		output_acceleration.x = output_acceleration.y = output_acceleration.z = 0;
+	}
+	else
+	{
+		output_acceleration = (1 / leaderNum) * leader_accel + separation_accel;
+		if (output_acceleration.length() > 0)
+		{
+			output_acceleration = normalize(output_acceleration);
+			output_acceleration = 0.8 * sf_max_speed * output_acceleration;
+		}
+	}
+}
+
+void SocialForcesAgent::GroupBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	Util::Vector leader_follow;
+	leaderFollowing(timeStamp, dt, frameNumber, leader_follow);
+	output_acceleration = leader_follow;
 }
 
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
@@ -1117,12 +1237,13 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 	Util::AxisAlignedBox oldBounds(_position.x - _radius, _position.x + _radius, 0.0f, 0.0f, _position.z - _radius, _position.z + _radius);
 
-	Util::Vector external_f, ind_f;
+	Util::Vector external_f, ind_f, group_f;
 	
 	external_forces(timeStamp, dt, frameNumber, external_f);
 	IndBehaviorAccel(timeStamp, dt, frameNumber, ind_f);
+	GroupBehaviorAccel(timeStamp, dt, frameNumber, group_f);
 
-	_velocity = velocity() + 0.4 * external_f + 0.6 * ind_f;
+	_velocity = velocity() + 0.3 * external_f + 0.455555 * ind_f + 0.6 * group_f;
 
 	_velocity = clamp(velocity(), _SocialForcesParams.sf_max_speed);
 	_velocity.y=0.0f;

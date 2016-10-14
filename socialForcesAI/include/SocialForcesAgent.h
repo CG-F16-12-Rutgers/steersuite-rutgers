@@ -78,6 +78,9 @@ protected:
 	void evadeAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void unalignedCollisionAvoidance(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void arriveAccel(Util::Point goalPoint, float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void leaderFollowing(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void GroupBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	// A3 end
 
 	SocialForcesParameters _SocialForcesParams;
