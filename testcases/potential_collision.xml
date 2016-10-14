@@ -153,7 +153,7 @@
     <name>Agent B</name>
     <initialConditions>
       <radius>0.5</radius>
-      <position> <x>-7</x> <y>0</y> <z>-1</z> </position>
+      <position> <x>-5</x> <y>0</y> <z>-1</z> </position>
       <direction> <x>-1</x> <y>0</y> <z>0</z> </direction>
       <speed>0</speed>
       <color> <r>0.5</r> <g>0</g> <b>0.5</b> </color>
