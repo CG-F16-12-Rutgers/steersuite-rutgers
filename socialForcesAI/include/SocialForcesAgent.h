@@ -67,6 +67,18 @@ protected:
 	/// Updates position, velocity, and orientation of the agent, given the force and dt time step.
 	// void _doEulerStep(const Util::Vector & steeringDecisionForce, float dt);
 
+	// A3 added
+	std::string agentName;
+	std::set<std::string> seekDynamicTargetSet;
+	std::set<std::string> fleeDynamicTargetSet;
+	void external_forces(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	bool updateStaticGoal(float timeStamp, float dt, unsigned int frameNumber);
+	bool noGoalRemained();
+	void pursueAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void evadeAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	// A3 end
+
 	SocialForcesParameters _SocialForcesParams;
 
 	virtual SteerLib::EngineInterface * getSimulationEngine();
