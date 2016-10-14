@@ -126,7 +126,7 @@
     an average human.)
   -->
   <agent>
-    <name>Leader</name>
+    <name>leader</name>
     <initialConditions>
       <radius>0.5</radius>
       <position> <x>22</x> <y>0</y> <z>-0.5</z> </position>
@@ -158,7 +158,12 @@
         <desiredSpeed>1.3</desiredSpeed>
         <timeDuration>1000.0</timeDuration>
       </seekStaticTarget>
-
+      <seekDynamicTarget>
+        <targetName>leader</targetName>
+        <random>false</random>
+        <desiredSpeed>1.3</desiredSpeed>
+        <timeDuration>1000.0</timeDuration>
+      </seekDynamicTarget>
     </goalSequence>
 
   </agent>
@@ -178,6 +183,12 @@
         <desiredSpeed>1.3</desiredSpeed>
         <timeDuration>1000.0</timeDuration>
       </seekStaticTarget>
+      <seekDynamicTarget>
+        <targetName>leader</targetName>
+        <random>false</random>
+        <desiredSpeed>1.3</desiredSpeed>
+        <timeDuration>1000.0</timeDuration>
+      </seekDynamicTarget>
 
     </goalSequence>
 
