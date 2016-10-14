@@ -132,6 +132,7 @@
       <position> <x>-10</x> <y>0</y> <z>-0.5</z> </position>
       <direction> <x>1</x> <y>0</y> <z>0</z> </direction>
       <speed>0</speed>
+      <color> <r>1</r> <g>0</g> <b>0</b> </color>
     </initialConditions>
     <goalSequence>
       <seekStaticTarget>
@@ -155,6 +156,7 @@
       <position> <x>-7</x> <y>0</y> <z>-1</z> </position>
       <direction> <x>-1</x> <y>0</y> <z>0</z> </direction>
       <speed>0</speed>
+      <color> <r>0.5</r> <g>0</g> <b>0.5</b> </color>
     </initialConditions>
     <goalSequence>
       <seekStaticTarget>
