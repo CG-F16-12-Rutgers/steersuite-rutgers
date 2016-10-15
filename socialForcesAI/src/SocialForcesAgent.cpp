@@ -1050,6 +1050,10 @@ void SocialForcesAgent::unalignedCollisionAvoidance(float timeStamp, float dt, u
 			{ // this is a leader while the other is not, this leader will not avoid the other
 				continue;
 			}
+			if (agentName.find("flock") != std::string::npos && (tmp_agent->agentName).find("flock") != std::string::npos)
+			{
+				continue;
+			}
 			Util::Point future_pos = position();
 			future_pos.x += time_step_in_future * dt * (velocity()).x;
 			future_pos.y += time_step_in_future * dt * (velocity()).y;
@@ -1225,11 +1229,137 @@ void SocialForcesAgent::leaderFollowing(float timeStamp, float dt, unsigned int 
 	}
 }
 
+void SocialForcesAgent::separationForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	double weight_separation = 0.2;
+	output_acceleration.x = output_acceleration.y = output_acceleration.z = 0;
+	if (agentName.find("flock") != std::string::npos)
+	{
+		std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+		SocialForcesAgent* tmp_agent;
+	
+		getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+                                _position.x-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.x+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+		for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
+			if ((*neighbour)->isAgent())
+			{
+				tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+				std::string other_name = tmp_agent->agentName;
+				if (other_name.find("flock") != std::string::npos)
+				{
+					Util::Vector from_other_to_this;
+					from_other_to_this.y = 0;
+					from_other_to_this.x = (position()).x - (tmp_agent->position()).x;
+					from_other_to_this.z = (position()).z - (tmp_agent->position()).z;
+					from_other_to_this = normalize(from_other_to_this);
+					output_acceleration = output_acceleration + weight_separation * from_other_to_this;
+				}
+			}
+	}
+}
+
+void SocialForcesAgent::cohesionForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	output_acceleration.x = output_acceleration.y = output_acceleration.z = 0;
+	if (agentName.find("flock") != std::string::npos)
+	{
+		Util::Point neighbour_center;
+		double neighbor_num = 0;
+		std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+		SocialForcesAgent* tmp_agent;
+	
+		getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+                                _position.x-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.x+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	
+		neighbour_center.x = neighbour_center.y = neighbour_center.z = 0;
+		for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
+			if ((*neighbour)->isAgent())
+			{
+				tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+				std::string other_name = tmp_agent->agentName;
+				if (other_name.find("flock") != std::string::npos)
+				{
+					neighbor_num = neighbor_num + 1;
+					neighbour_center.x += (tmp_agent->position()).x;
+					neighbour_center.z += (tmp_agent->position()).z;
+				}
+			}
+		if (neighbor_num > 0)
+		{
+			neighbour_center.x /= neighbor_num;	
+			neighbour_center.z /= neighbor_num;
+			Util::Vector desired_v;
+			desired_v.x = neighbour_center.x - (position()).x;
+			desired_v.z = neighbour_center.z - (position()).z;
+			desired_v.y = 0;
+			if (desired_v.length() > 0)
+				desired_v = normalize(desired_v);
+			output_acceleration = sf_max_speed * desired_v - (velocity());
+		}
+	}
+}
+
+void SocialForcesAgent::alignmentForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	output_acceleration.x = output_acceleration.y = output_acceleration.z = 0;
+	if (agentName.find("flock") != std::string::npos)
+	{
+		Util::Vector desired_v;
+		double neighbor_num = 0;
+		std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+		SocialForcesAgent* tmp_agent;
+	
+		getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+                                _position.x-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.x+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z-(this->_radius + _SocialForcesParams.sf_query_radius),
+                                _position.z+(this->_radius + _SocialForcesParams.sf_query_radius),
+                                dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	
+		desired_v.x = desired_v.y = desired_v.z = 0;
+		for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++)
+			if ((*neighbour)->isAgent())
+			{
+				tmp_agent = dynamic_cast<SocialForcesAgent *>(*neighbour);
+				std::string other_name = tmp_agent->agentName;
+				if (other_name.find("flock") != std::string::npos)
+				{
+					desired_v = desired_v + tmp_agent->velocity();
+					neighbor_num = neighbor_num + 1;
+				}
+			}
+		if (neighbor_num > 0)
+		{
+			desired_v = (1 / neighbor_num) * desired_v;
+			output_acceleration = desired_v - (velocity());
+		}
+	}
+}
+
+void SocialForcesAgent::flockAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
+{
+	Util::Vector cohesion_accel, align_accel, separation_accel;
+	cohesionForFlock(timeStamp, dt, frameNumber, cohesion_accel);
+	alignmentForFlock(timeStamp, dt, frameNumber, align_accel);
+	separationForFlock(timeStamp, dt, frameNumber, separation_accel);
+	output_acceleration = 0.1 * separation_accel + 0.1 * cohesion_accel + 0.1 * align_accel;
+}
+
 void SocialForcesAgent::GroupBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration)
 {
-	Util::Vector leader_follow;
+	Util::Vector leader_follow, flock_accell;
 	leaderFollowing(timeStamp, dt, frameNumber, leader_follow);
-	output_acceleration = leader_follow;
+	flockAccel(timeStamp, dt, frameNumber, flock_accell);
+	output_acceleration = leader_follow + flock_accell;
 }
 
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)

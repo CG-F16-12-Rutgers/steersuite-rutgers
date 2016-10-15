@@ -80,6 +80,10 @@ protected:
 	void IndBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void arriveAccel(Util::Point goalPoint, float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void leaderFollowing(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void separationForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void cohesionForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void alignmentForFlock(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
+	void flockAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	void GroupBehaviorAccel(float timeStamp, float dt, unsigned int frameNumber, Util::Vector &output_acceleration);
 	// A3 end
 
