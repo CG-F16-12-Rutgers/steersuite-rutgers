@@ -145,12 +145,7 @@
         <desiredSpeed>1.3</desiredSpeed>
         <timeDuration>1000.0</timeDuration>
       </seekStaticTarget>
-      <fleeDynamicTarget>
-        <targetName>Agent B</targetName>
-        <random>false</random>
-        <desiredSpeed>1.3</desiredSpeed>
-        <timeDuration>1000.0</timeDuration>
-      </fleeDynamicTarget>
+
     </goalSequence>
 
   </agent>
