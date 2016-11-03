@@ -527,6 +527,8 @@ project "searchAI"
 		"util"
 	}
 	
+	buildoptions("-std=c++0x -ggdb")
+	
 project "curveAI"
 	language "C++"
 	kind "SharedLib"
