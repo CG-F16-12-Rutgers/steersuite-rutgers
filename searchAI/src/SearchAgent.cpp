@@ -85,6 +85,10 @@ void SearchAgent::reset(const SteerLib::AgentInitialConditions & initialConditio
 	assert(_forward.length()!=0.0f);
 	assert(_goalQueue.size() != 0);
 	assert(_radius != 0.0f);
+
+	// A4
+	computePlan();
+	// A4 end
 }
 
 
@@ -125,7 +129,6 @@ void SearchAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
 	Util::AutomaticFunctionProfiler profileThisFunction( &SearchAIGlobals::gPhaseProfilers->aiProfiler );
 
-	
 	double steps = (DURATION/(double)__path.size());
 	if(timeStamp*dt > last_waypoint*steps)
 	{	
