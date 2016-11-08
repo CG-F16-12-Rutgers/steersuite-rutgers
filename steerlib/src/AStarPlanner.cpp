@@ -14,8 +14,6 @@
 #include <queue>
 #include <math.h>
 #include "planning/AStarPlanner.h"
-#include <unordered_map>
-#include <chrono>
 
 #define COLLISION_COST  1000
 #define GRID_STEP  1
@@ -43,11 +41,12 @@ namespace SteerLib
 		z_range_min = MAX(z-OBSTACLE_CLEARANCE, 0);
 		z_range_max = MIN(z+OBSTACLE_CLEARANCE, gSpatialDatabase->getNumCellsZ());
 
-
 		for (int i = x_range_min; i<=x_range_max; i+=GRID_STEP)
 		{
 			for (int j = z_range_min; j<=z_range_max; j+=GRID_STEP)
 			{
+				if (i < 0 || i >= gSpatialDatabase->getNumCellsX() || j < 0 || j >= gSpatialDatabase->getNumCellsZ())
+					continue;
 				int index = gSpatialDatabase->getCellIndexFromGridCoords( i, j );
 				traversal_cost += gSpatialDatabase->getTraversalCost ( index );
 				
@@ -68,167 +67,7 @@ namespace SteerLib
 		return p;
 	}
 
-	class My_heap
-	{
-	public:
-
-		void clear()
-		{
-			f_heap.clear();
-			g_heap.clear();
-			h_heap.clear();
-			index_heap.clear();
-			index_to_node.clear();
-		}
-
-		void init()
-		{
-			f_heap.push_back(-1);
-			g_heap.push_back(-1);
-			h_heap.push_back(-1);
-			index_heap.push_back(-1);
-		}
-
-		My_heap()
-		{
-			clear();
-			init();
-		}
-		
-		~My_heap()
-		{
-			clear();
-		}
-
-		// return true when a is better than b
-		static bool better(double fa, double ga, double fb, double gb)
-		{
-			if (fa < fb)
-				return true;
-			if (fa > fb)
-				return false;
-			return (ga < gb);
-		}
-
-		// move the node to proper position so that the heap is maintained, return new position
-		int heapify(int node)
-		{
-			if (node >= index_heap.size())
-				return -1;
-			int res = node, n = f_heap.size();
-			// go up
-			while (res > 1 && better(f_heap[res], g_heap[res], f_heap[res >> 1], g_heap[res >> 1]))
-			{
-				swap(res, (res >> 1));
-				res = (res >> 1);
-			}
-			// go down
-			while ((res << 1) < n)
-			{
-				int left = (res << 1), right = 1 + (res << 1), best_child;
-				if (right >= n || better(f_heap[left], g_heap[left], f_heap[right], g_heap[right]))
-					best_child = left;
-				else
-					best_child = right;
-				if (better(f_heap[res], g_heap[res], f_heap[best_child], g_heap[best_child]))
-					break;
-				swap(res, best_child);
-				res = best_child;
-			}
-			return res;
-		}
-
-		// return true if the heap is empty
-		bool empty()
-		{
-			return (f_heap.size() < 2);
-		}
-
-		bool insert(int index, double f_val, double g_val, double h_val)
-		{
-			f_heap.push_back(f_val);
-			g_heap.push_back(g_val);
-			h_heap.push_back(h_val);
-			index_heap.push_back(index);
-			index_to_node[index] = index_heap.size() - 1;
-			heapify(index_to_node[index]);
-			return true;
-		}
-
-		// return true when cell with index exists in the heap
-		bool has_index(int index)
-		{
-			if (index_to_node.find(index) == index_to_node.end())
-				return false;
-			return true;
-		}
-
-		bool get_root(int &index, double &f_val, double &g_val, double &h_val)
-		{
-			if (empty())
-				return false;
-			index = index_heap[1];
-			f_val = f_heap[1];
-			g_val = g_heap[1];
-			h_val = h_heap[1];
-			return true;
-		}
-
-		bool pop()
-		{	
-			if (empty())
-				return false;
-			int n = f_heap.size() - 1, removed_index;
-			swap(1, n);
-			removed_index = index_heap[n];
-			f_heap.pop_back();
-			g_heap.pop_back();
-			h_heap.pop_back();
-			index_heap.pop_back();
-			index_to_node.erase(removed_index);
-			heapify(1);
-			return true;
-		}
-
-		bool update(int index, double f_val, double g_val, double h_val)
-		{
-			if (!has_index(index))
-				return false;
-			int node = index_to_node[index];
-			f_heap[node] = f_val;
-			g_heap[node] = g_val;
-			h_heap[node] = h_val;
-			heapify(node);
-			return true;
-		}
-
-	private:
-		std::vector<double> f_heap, g_heap, h_heap;
-		std::vector<int> index_heap;
-		std::unordered_map<int, int> index_to_node;
-
-		void swap(int node_a, int node_b)
-		{
-			double t = f_heap[node_a];
-			f_heap[node_a] = f_heap[node_b];
-			f_heap[node_b] = t;
-			t = g_heap[node_a];
-			g_heap[node_a] = g_heap[node_b];
-			g_heap[node_b] = t;
-			t = h_heap[node_a];
-			h_heap[node_a] = h_heap[node_b];
-			h_heap[node_b] = t;
-			int index_a = index_heap[node_a], index_b = index_heap[node_b];
-			index_to_node[index_a] = node_b;
-			index_to_node[index_b] = node_a;
-			index_heap[node_a] = index_b;
-			index_heap[node_b] = index_a;
-		}
-		
-	};
-
 	// get the neighbor list for search
-	// TODO!
 	void get_neighbor_index_list(int current_cell, std::vector<int> &neighbor_list, SteerLib::SpatialDataBaseInterface *_gSpatialDatabase)
 	{
 		int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1}, dz[] = {-1, -1, -1, 0, 0, 1, 1, 1}, i;
@@ -247,7 +86,6 @@ namespace SteerLib
 	}
 
 	// get the cost from current_cell to next_cell
-	// TODO! not sure
 	double cost_between(int current_cell, int next_cell, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase)
 	{
 		unsigned int x_cur, z_cur, x_next, z_next;
@@ -260,7 +98,6 @@ namespace SteerLib
 	}
 
 	// check if an agent can go to a cell
-	// TODO! not sure
 	bool can_go_to(int current_cell, int next_cell, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner)
 	{
 		return (!_gSpatialDatabase->hasAnyItems(next_cell) && (planner->canBeTraversed(next_cell)));
@@ -344,7 +181,6 @@ namespace SteerLib
 		node_expanded = 0;
 		node_generated = 1;
 
-		// TODO: figure out where is the cost assigned, edge or node
 		g_val[start_cell] = 0;
 		h_val[start_cell] = cal_h_by_cell(heuristic_index, start_cell, goal_cell, _gSpatialDatabase);
 		f_val[start_cell] = cal_f_by_cell(g_val[start_cell], weight, heuristic_index, start_cell, goal_cell, _gSpatialDatabase);
@@ -430,7 +266,6 @@ namespace SteerLib
 			(h_val[i]).clear();
 			(closed_list[i]).clear();
 			node_generated++;
-			// TODO: figure out the cost
 			g_start = 0;
 			h_start = cal_h_by_cell(heuristic_index[i], start_cell, goal_cell, _gSpatialDatabase);
 			f_start = cal_f_by_cell(g_start, weight[i], heuristic_index[i], start_cell, goal_cell, _gSpatialDatabase);
@@ -680,6 +515,334 @@ namespace SteerLib
 			path_length = agent_path.size();
 			path_cost = g_val[goal_cell];
 		}
+
+		return path_found;
+	}
+
+	void key_ad_star(int s_cell, double weight, int heuristic_index, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, int start_cell, double g_input, double rhs_input, bool g_inf, bool rhs_inf, double &key1, double &key2)
+	{
+		if ((g_inf && !rhs_inf) || (!g_inf && !rhs_inf && g_input > rhs_input))
+		{
+			key1 = cal_f_by_cell(rhs_input, weight, heuristic_index, s_cell, start_cell, _gSpatialDatabase);
+			key2 = rhs_input;
+		}
+		else if (!g_inf)
+		{
+			key1 = cal_f_by_cell(g_input, 1, heuristic_index, s_cell, start_cell, _gSpatialDatabase);
+			key2 = g_input;
+		}
+	}
+
+	void update_state_ad_star(int s_cell, double weight, int heuristic_index, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, std::set<int> &closed_list, int start_cell, int goal_cell, std::unordered_map<int, double> &rhs_val, std::unordered_map<int, double> &g_val, My_heap &open_list, std::unordered_map<int, int> &come_from_rhs, std::unordered_map<int, int> &come_from_g, std::set<int> &incons_list, int &node_expanded, int &node_generated)
+	{
+		int i;
+		if (s_cell != goal_cell)
+		{
+			std::vector<int> neighbor_list;
+                        get_neighbor_index_list(s_cell, neighbor_list, _gSpatialDatabase);
+			double rhs_min;
+			int rhs_min_come_from;
+			bool rhs_found = false;
+			for (i = 0; i < neighbor_list.size(); i++)
+			{
+				if (can_go_to(s_cell, neighbor_list[i], _gSpatialDatabase, planner))
+				{
+					int next_cell = neighbor_list[i];
+					if (g_val.find(next_cell) == g_val.end())
+						continue;
+					double rhs_new = g_val[next_cell] + cost_between(s_cell, next_cell, _gSpatialDatabase);
+					if (!rhs_found || (rhs_new < rhs_min))
+					{
+						rhs_found = true;
+						rhs_min = rhs_new;
+						rhs_min_come_from = next_cell;
+					}
+				}
+			}
+			if (!rhs_found)
+			{
+				if (come_from_rhs.find(s_cell) != come_from_rhs.end())
+				{
+					come_from_rhs.erase(s_cell);
+					rhs_val.erase(s_cell);
+				}
+			}
+			else
+			{
+				rhs_val[s_cell] = rhs_min;
+				come_from_rhs[s_cell] = rhs_min_come_from;
+			}
+		}
+		if (open_list.has_index(s_cell))
+			open_list.remove_cell_by_index(s_cell);
+		bool g_inf = (g_val.find(s_cell) == g_val.end()), rhs_inf = (rhs_val.find(s_cell) == rhs_val.end());
+		double g_s, rhs_s;
+		if (!g_inf)
+			g_s = g_val[s_cell];
+		if (!rhs_inf)
+			rhs_s = rhs_val[s_cell];
+		if ((g_inf && !rhs_inf) || (!g_inf & !rhs_inf && rhs_s != g_s))
+		{
+			if (closed_list.find(s_cell) == closed_list.end())
+			{
+				double key1, key2;
+				key_ad_star(s_cell, weight, heuristic_index, _gSpatialDatabase, planner, start_cell, g_s, rhs_s, g_inf, rhs_inf, key1, key2);
+				open_list.insert(s_cell, key1, key2, 0);
+				node_generated++;
+			}
+			else
+			{
+				incons_list.insert(s_cell);
+			}
+		}
+	}
+
+	bool compute_improve_path_ad_star(SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, int start_cell, int goal_cell, double weight, int heuristic_index, My_heap &open_list, std::set<int> &closed_list, std::unordered_map<int, double> &g_val, std::unordered_map<int, double> &rhs_val, std::unordered_map<int, int> &come_from_g, std::unordered_map<int, int> &come_from_rhs, std::set<int> &incons_list, std::vector<Util::Point>& agent_path, double &path_cost, int &path_length, int &node_expanded, int &node_generated)
+	{
+		bool path_found = false;
+		while (!(open_list.empty()))
+		{
+			bool g_inf_start = (g_val.find(start_cell) == g_val.end()), rhs_inf_start = (rhs_val.find(start_cell) == rhs_val.end());
+			double g_start, rhs_start;
+			if (!g_inf_start)
+				g_start = g_val[start_cell];
+			if (!rhs_inf_start)
+				rhs_start = rhs_val[start_cell];
+			bool rhs_start_eq_g_start = (!g_inf_start && !rhs_inf_start && g_start == rhs_start);
+			double start_key1, start_key2;
+			key_ad_star(start_cell, weight, heuristic_index, _gSpatialDatabase, planner, start_cell, g_start, rhs_start, g_inf_start, rhs_inf_start, start_key1, start_key2);
+			int s_cell, i;
+			double s_key1, s_key2, t;
+			open_list.get_root(s_cell, s_key1, s_key2, t);
+			bool s_better_than_start = ((g_inf_start && rhs_inf_start) || (My_heap::better(s_key1, s_key2, start_key1, start_key2)));
+			if (rhs_start_eq_g_start && !s_better_than_start)
+				break;
+			open_list.pop();
+			node_expanded++;
+			bool s_inf_g = (g_val.find(s_cell) == g_val.end()), s_inf_rhs(rhs_val.find(s_cell) == rhs_val.end());
+			double s_g, s_rhs;
+			if (!s_inf_g)
+				s_g = g_val[s_cell];
+			if (!s_inf_rhs)
+				s_rhs = rhs_val[s_cell];
+			std::vector<int> should_update;
+			get_neighbor_index_list(s_cell, should_update, _gSpatialDatabase);
+			if ((s_inf_g && !s_inf_rhs) || (!s_inf_g && !s_inf_rhs && s_rhs < s_g))
+			{
+				g_val[s_cell] = rhs_val[s_cell];
+				come_from_g[s_cell] = come_from_rhs[s_cell];
+				closed_list.insert(s_cell);
+			}
+			else
+			{
+				g_val.erase(s_cell);
+				come_from_g.erase(s_cell);
+				should_update.push_back(s_cell);
+			}
+			for (i = 0; i < should_update.size(); i++)
+			{
+				s_cell = should_update[i];
+				update_state_ad_star(s_cell, weight, heuristic_index, _gSpatialDatabase, planner, closed_list, start_cell, goal_cell, rhs_val, g_val, open_list, come_from_rhs, come_from_g, incons_list, node_expanded, node_generated);
+			}
+		}
+
+		if (come_from_g.find(start_cell) != come_from_g.end())
+		{
+			path_found = true;
+			agent_path.clear();
+			int current_cell = start_cell;
+			while (1)
+			{
+				Util::Point current_location;
+				_gSpatialDatabase->getLocationFromIndex(current_cell, current_location);
+				agent_path.push_back(current_location);
+				if (current_cell == goal_cell)
+					break;
+				if (come_from_g.find(current_cell) == come_from_g.end())
+				{
+					path_found = false;
+					break;
+				}
+				current_cell = come_from_g[current_cell];
+			}
+			if (path_found)
+			{
+				path_cost = g_val[start_cell];
+				path_length = agent_path.size();
+			}
+		}
+
+		return path_found;
+	}
+
+	void move_incons_to_open_ad_star(My_heap &open_list, std::set<int> &incons_list, double weight, int heuristic_index, std::unordered_map<int, double> &g_val, std::unordered_map<int, double> &rhs_val, std::unordered_map<int, int> &come_from_g, std::unordered_map<int, int> &come_from_rhs, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, int start_cell, int goal_cell)
+	{
+		std::set<int> cell_insert;
+		cell_insert.clear();
+		while (!(open_list.empty()))
+		{
+			int cell_root;
+			double root_key1, root_key2, root_key3;
+			open_list.get_root(cell_root, root_key1, root_key2, root_key3);
+			cell_insert.insert(cell_root);
+			open_list.pop();
+		}
+		for (auto cell_incons : incons_list)
+		{
+			cell_insert.insert(cell_incons);
+		}
+		incons_list.clear();
+		for (auto cell_checked : cell_insert)
+		{
+			bool g_inf = (g_val.find(cell_checked) == g_val.end()), rhs_inf = (rhs_val.find(cell_checked) == rhs_val.end());
+			double g_check, rhs_check;
+			if (!g_inf)
+				g_check = g_val[cell_checked];
+			if (!rhs_inf)
+				rhs_check = rhs_val[cell_checked];
+			if (!g_inf || !rhs_inf)
+			{
+				double key1_check, key2_check;
+				key_ad_star(cell_checked, weight, heuristic_index, _gSpatialDatabase, planner, start_cell, g_check, rhs_check, g_inf, rhs_inf, key1_check, key2_check);
+				open_list.insert(cell_checked, key1_check, key2_check, 0);
+			}
+		}
+	}
+
+	bool AStarPlanner::init_ad_star(std::vector<Util::Point>& agent_path, Util::Point start, Util::Point goal, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, double init_weight, int heuristic_index, My_heap &open_list, std::set<int> &closed_list, std::unordered_map<int, double> &g_val, std::unordered_map<int, int> &come_from_g, std::unordered_map<int, double> &rhs_val, std::unordered_map<int, int> &come_from_rhs, std::set<int> &incons_list, double &weight_output, double &path_cost, int &path_length, int &node_expanded, int &node_generated, double &time_secs, bool append_to_path)
+	{
+		goal_ad_star = goal;
+		gSpatialDatabase = _gSpatialDatabase;
+		weight_output = init_weight;
+		g_val.clear();
+		come_from_g.clear();
+		rhs_val.clear();
+		come_from_rhs.clear();
+		closed_list.clear();
+		incons_list.clear();
+		open_list.clear();
+		open_list.init();
+		node_expanded = 0;
+		node_generated = 0;
+		int start_cell = _gSpatialDatabase->getCellIndexFromLocation(start);
+		int goal_cell = _gSpatialDatabase->getCellIndexFromLocation(goal);
+		rhs_val[goal_cell] = 0;
+		double goal_key1, goal_key2;
+		std::vector<Util::Point> reported_path;
+		auto start_time = std::chrono::steady_clock::now();
+
+		key_ad_star(goal_cell, init_weight, heuristic_index, _gSpatialDatabase, this, start_cell, 0, 0, true, false, goal_key1, goal_key2);
+		open_list.insert(goal_cell, goal_key1, goal_key2, 0);
+		node_generated++;
+		bool path_found = compute_improve_path_ad_star(_gSpatialDatabase, this, start_cell, goal_cell, init_weight, heuristic_index, open_list, closed_list, g_val, rhs_val, come_from_g, come_from_rhs, incons_list, reported_path, path_cost, path_length, node_expanded, node_generated);
+		auto end_time = std::chrono::steady_clock::now();
+                auto diff_time = end_time - start_time;
+                time_secs = (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(diff_time).count());
+                time_secs /= 1000000000;
+
+		if (path_found)
+		{
+			if (!append_to_path)
+				agent_path.clear();
+			int i;
+			for (i = 0; i < reported_path.size(); i++)
+				agent_path.push_back(reported_path[i]);
+		}
+		return path_found;
+	}
+
+	void AStarPlanner::get_changed_state_ad_star(std::set<int> &changed_state, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase)
+	{
+		int x, z;
+		changed_state.clear();
+		/*
+		for (x = 0; x < _gSpatialDatabase->getNumCellsX(); x++)
+			for (z = 0; z < _gSpatialDatabase->getNumCellsZ(); z++)
+			{
+				int cell_index = _gSpatialDatabase->getCellIndexFromGridCoords(x, z);
+				if (can_go_to(0, cell_index, _gSpatialDatabase, this))
+					changed_state.insert(cell_index);
+			}
+		*/
+	}
+
+	bool AStarPlanner::detect_significant_edge_cost_change(SteerLib::SpatialDataBaseInterface * _gSpatialDatabase)
+	{
+		return true;
+	}
+
+	bool AStarPlanner::loop_ad_star(std::vector<Util::Point>& agent_path, Util::Point start, double weight_decay, int heuristic_index, My_heap &open_list, std::set<int> &closed_list, std::unordered_map<int, double> &g_val, std::unordered_map<int, int> &come_from_g, std::unordered_map<int, double> &rhs_val, std::unordered_map<int, int> &come_from_rhs, std::set<int> &incons_list, double &weight_output, double &path_cost, int &path_length, int &node_expanded, int &node_generated, double &time_secs, bool append_to_path)
+	{
+		Util::Point goal = goal_ad_star;
+		SteerLib::SpatialDataBaseInterface *_gSpatialDatabase = gSpatialDatabase;
+		gSpatialDatabase = _gSpatialDatabase;
+		auto start_time = std::chrono::steady_clock::now();
+		int start_cell = _gSpatialDatabase->getCellIndexFromLocation(start);
+		int goal_cell = _gSpatialDatabase->getCellIndexFromLocation(goal);
+		bool path_found = false, no_change = false;
+		std::set<int> changed_state;
+		std::vector<Util::Point> reported_path;
+		get_changed_state_ad_star(changed_state, _gSpatialDatabase);
+		for (auto state_should_update : changed_state)
+		{
+			update_state_ad_star(state_should_update, weight_output, heuristic_index, _gSpatialDatabase, this, closed_list, start_cell, goal_cell, rhs_val, g_val, open_list, come_from_rhs, come_from_g, incons_list, node_expanded, node_generated);
+		}
+		
+		if (detect_significant_edge_cost_change(_gSpatialDatabase))
+		{
+			path_found = init_ad_star(reported_path, start, goal, _gSpatialDatabase, w0_ad_star, heuristic_index, open_list, closed_list, g_val, come_from_g, rhs_val, come_from_rhs, incons_list, weight_output, path_cost, path_length, node_expanded, node_generated, time_secs, false);
+			no_change = true;
+		}
+		else
+		{
+			double weight_old = weight_output;
+			weight_output -= weight_decay;
+			if (weight_output < 1)
+				weight_output = 1;
+			no_change = (weight_old == weight_output);
+		}
+
+		if (!no_change)
+		{
+			move_incons_to_open_ad_star(open_list, incons_list, weight_output, heuristic_index, g_val, rhs_val, come_from_g, come_from_rhs, _gSpatialDatabase, this, start_cell, goal_cell);
+			closed_list.clear();
+			compute_improve_path_ad_star(_gSpatialDatabase, this, start_cell, goal_cell, weight_output, heuristic_index, open_list, closed_list, g_val, rhs_val, come_from_g, come_from_rhs, incons_list, reported_path, path_cost, path_length, node_expanded, node_generated);
+		}
+
+		if (come_from_g.find(start_cell) != come_from_g.end())
+		{
+			path_found = true;
+			int current_cell = start_cell, i;
+			reported_path.clear();
+			while (1)
+			{
+				Util::Point current_location;
+				_gSpatialDatabase->getLocationFromIndex(current_cell, current_location);
+				reported_path.push_back(current_location);
+				if (current_cell == goal_cell)
+					break;
+				if (come_from_g.find(current_cell) == come_from_g.end())
+				{
+					path_found = false;
+					break;
+				}
+				current_cell = come_from_g[current_cell];
+			}
+			if (path_found)
+			{
+				path_cost = g_val[start_cell];
+				if (!append_to_path)
+					agent_path.clear();
+				for (i = 0; i < reported_path.size(); i++)
+					agent_path.push_back(reported_path[i]);
+				path_length = agent_path.size();
+			}
+		}
+
+		auto end_time = std::chrono::steady_clock::now();
+                auto diff_time = end_time - start_time;
+                time_secs = (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(diff_time).count());
+                time_secs /= 1000000000;
 
 		return path_found;
 	}

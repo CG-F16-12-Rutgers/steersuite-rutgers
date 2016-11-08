@@ -87,7 +87,15 @@ void SearchAgent::reset(const SteerLib::AgentInitialConditions & initialConditio
 	assert(_radius != 0.0f);
 
 	// A4
-	computePlan();
+	// not AD*
+	//computePlan();
+	// AD*
+	astar.heuristic_ad_star = 1;
+	astar.w0_ad_star = 1;
+	astar.w_decay_ad_star = 0;
+	double time_secs, path_cost;
+	int path_length;
+	astar.init_ad_star(__path, __position, _goalQueue.front().targetLocation, gSpatialDatabase, astar.w0_ad_star, astar.heuristic_ad_star, astar.open_list_ad_star, astar.closed_list_ad_star, astar.g_val_ad_star, astar.come_from_g_ad_star, astar.rhs_val_ad_star, astar.come_from_rhs_ad_star, astar.incons_list_ad_star, astar.w_ad_star, path_cost, path_length, astar.node_expanded_ad_star, astar.node_generated_ad_star, time_secs, false);
 	// A4 end
 }
 
@@ -130,15 +138,23 @@ void SearchAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 	Util::AutomaticFunctionProfiler profileThisFunction( &SearchAIGlobals::gPhaseProfilers->aiProfiler );
 
 	double steps = (DURATION/(double)__path.size());
-	if(timeStamp*dt > last_waypoint*steps)
-	{	
-		if(!_goalQueue.empty())
-		{
-			__position = _goalQueue.front().targetLocation;
+	if(frameNumber > 100 && timeStamp*dt > 0.3 * last_waypoint)
+	{
+			// AD* update
+			double path_cost, time_secs;
+			int path_length;
+			bool path_found = astar.loop_ad_star(__path, __position, astar.w_decay_ad_star, astar.heuristic_ad_star, astar.open_list_ad_star, astar.closed_list_ad_star, astar.g_val_ad_star, astar.come_from_g_ad_star, astar.rhs_val_ad_star, astar.come_from_rhs_ad_star, astar.incons_list_ad_star, astar.w_ad_star, path_cost, path_length, astar.node_expanded_ad_star, astar.node_generated_ad_star, time_secs, false);
+			if (!path_found)
+				__path.clear();
+			// AD* update end
+			if (__path.size() > 1)
+			{
+				__path.erase(__path.begin());
+			}
+			if (__path.size() > 0)
+				__position = __path[0];
 			std::cout<<"Waypoint: "<< __position;
-			_goalQueue.pop();
 			last_waypoint++;
-		}
 	}
 }
 
