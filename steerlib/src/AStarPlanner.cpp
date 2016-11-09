@@ -356,7 +356,7 @@ namespace SteerLib
 		return path_found;
 	}
 
-	bool improve_ara_star(My_heap &open_list, std::set<int> &incons_cell, std::unordered_map<int, double> &incons_f, std::unordered_map<int, double> &incons_g, std::unordered_map<int, double> &incons_h, std::unordered_map<int, int> &incons_come_from, std::set<int> &closed_list, std::unordered_map<int, int> come_from_list, std::unordered_map<int, double> &f_val, std::unordered_map<int, double> &g_val, std::unordered_map<int, double> &h_val, double weight, int heuristic_index, int start_cell, int goal_cell, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, std::vector<Util::Point> &path_reported, int &node_expanded, int &node_generated)
+	bool improve_ara_star(My_heap &open_list, std::set<int> &incons_cell, std::unordered_map<int, double> &incons_f, std::unordered_map<int, double> &incons_g, std::unordered_map<int, double> &incons_h, std::unordered_map<int, int> &incons_come_from, std::set<int> &closed_list, std::unordered_map<int, int> &come_from_list, std::unordered_map<int, double> &f_val, std::unordered_map<int, double> &g_val, std::unordered_map<int, double> &h_val, double weight, int heuristic_index, int start_cell, int goal_cell, SteerLib::SpatialDataBaseInterface * _gSpatialDatabase, AStarPlanner *planner, std::vector<Util::Point> &path_reported, int &node_expanded, int &node_generated)
 	{
 		int i;
 		bool path_found = false;
@@ -858,7 +858,7 @@ namespace SteerLib
 		plan_output.clear();
 
 		// weighted A*
-	
+
 		path_found = weighted_a_star(plan_output, start, goal, _gSpatialDatabase, this, 1, 1, path_cost, path_length, node_expanded, node_generated, time_secs);
 		if (!append_to_path)
 		{
@@ -866,7 +866,6 @@ namespace SteerLib
 		}
 		for (i = 0; i < plan_output.size(); i++)
 			agent_path.push_back(plan_output[i]);
-
 
 		// sequential A*
 		/*
